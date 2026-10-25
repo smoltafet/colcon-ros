@@ -54,10 +54,11 @@ def test_identify():
 
         augmentation_extension.augment_packages([desc])
         assert desc.metadata['version'] == '0.0.0'
-        assert set(desc.dependencies.keys()) == {'build', 'run', 'test'}
+        assert set(desc.dependencies.keys()) == {'build', 'run', 'test', 'doc'}
         assert not desc.dependencies['build']
         assert not desc.dependencies['run']
         assert not desc.dependencies['test']
+        assert not desc.dependencies['doc']
 
         _cached_packages.clear()
         desc = PackageDescriptor(basepath)
@@ -73,6 +74,8 @@ def test_identify():
             'runA</buildtool_export_depend>\n'
             '  <test_depend>test</test_depend>\n'
             '  <exec_depend>runB</exec_depend>\n'
+            '  <doc_depend>doc</doc_depend>\n'
+            '  <doc_depend version_gte="2.0">doc_versioned</doc_depend>\n'
             '  <export>\n'
             '    <build_type>ament_cmake</build_type>\n'
             '  </export>\n'
@@ -85,12 +88,16 @@ def test_identify():
 
         augmentation_extension.augment_packages([desc])
         assert desc.metadata['version'] == '0.0.0'
-        assert set(desc.dependencies.keys()) == {'build', 'run', 'test'}
+        assert set(desc.dependencies.keys()) == {'build', 'run', 'test', 'doc'}
         assert desc.dependencies['build'] == {'build'}
         assert desc.dependencies['run'] == {'runA', 'runB'}
         dep = next(x for x in desc.dependencies['run'] if x == 'runA')
         assert dep.metadata['version_gt'] == '1.2.3'
         assert desc.dependencies['test'] == {'test'}
+        assert desc.dependencies['doc'] == {'doc', 'doc_versioned'}
+        dep = next(
+            x for x in desc.dependencies['doc'] if x == 'doc_versioned')
+        assert dep.metadata['version_gte'] == '2.0'
 
         assert desc.metadata['maintainers'] == ['Foo Bar <foobar@example.com>']
 

@@ -125,6 +125,11 @@ def augment_package(desc, pkg):
             pkg.test_depends
         ))
 
+    desc.dependencies['doc'].update(
+        _enumerate_dependency_descriptors(
+            pkg.doc_depends
+        ))
+
     # get any maintainers which list an E-mail address
     maintainers = [str(m) for m in pkg.maintainers if m.email]
     if maintainers:
