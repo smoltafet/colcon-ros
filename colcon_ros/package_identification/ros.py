@@ -183,12 +183,12 @@ def _get_package(path: str):
         if has_ros_schema_reference(path):
             logger.debug(
                 f"Found ROS schema reference in package manifest in '{path}'")
-            logger.warn(
-                f"Failed to parse ROS package manifest in '{path}': {e}")
-        else:
-            logger.debug(
-                'Failed to parse potential ROS package manifest in'
-                f"'{path}': {e}")
+        # the manifest exists but could not be parsed: this is a broken
+        # ROS package, not just a location which happens to not be one,
+        # so surface it instead of silently falling back to another
+        # package type (see #146)
+        logger.warn(
+            f"Failed to parse ROS package manifest in '{path}': {e}")
         return None
 
     condition_context = {

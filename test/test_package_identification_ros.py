@@ -106,3 +106,51 @@ def test_identify():
         with pytest.raises(IgnoreLocationException):
             extension.identify(desc)
         (basepath / 'manifest.xml').unlink()
+
+
+def test_identify_broken_manifest(caplog):
+    extension = RosPackageIdentification()
+
+    with TemporaryDirectory(prefix='test_colcon_') as basepath:
+        basepath = Path(basepath)
+        # a setup.py next to the manifest is the scenario from #146:
+        # the location silently ends up identified as a plain Python
+        # package unless the broken manifest is surfaced
+        (basepath / 'setup.py').touch()
+
+        def assert_warns_and_declines():
+            _cached_packages.clear()
+            desc = PackageDescriptor(basepath)
+            with caplog.at_level(
+                'WARNING',
+                logger='colcon.colcon_core.package_identification',
+            ):
+                assert extension.identify(desc) is None
+            assert desc.type is None
+            assert desc.name is None
+            assert any(
+                'Failed to parse ROS package manifest' in r.getMessage()
+                for r in caplog.records)
+
+        # syntactically invalid manifest (unclosed tag)
+        (basepath / 'package.xml').write_text(
+            '<package format="3">\n'
+            '  <name>pkg-name</name>\n'
+            '  <version>0.0.0</version>\n'
+            '  <description>test package</description>\n'
+            '  <maintainer email="foobar@example.com">Foo Bar</maintainer>\n'
+            '  <license>Apache-2.0</license>\n'
+            '  <buildtool_depend>catkin</buildtool_depend\n'
+            '</package>\n')
+        assert_warns_and_declines()
+
+        # semantically invalid manifest (missing maintainer)
+        caplog.clear()
+        (basepath / 'package.xml').write_text(
+            '<package format="3">\n'
+            '  <name>pkg-name</name>\n'
+            '  <version>0.0.0</version>\n'
+            '  <description>test package</description>\n'
+            '  <license>Apache-2.0</license>\n'
+            '</package>\n')
+        assert_warns_and_declines()
